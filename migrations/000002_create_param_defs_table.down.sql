@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS steam_param_defs;

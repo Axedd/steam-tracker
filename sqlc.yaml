@@ -1,0 +1,10 @@
+version: "1"
+packages:
+  - name: "db"                      # the Go package name
+    path: "internal/db"             # ← relative folder, under your cwd
+    engine: "postgresql"
+    schema: "migrations"
+    queries: "internal/db/queries"
+    emit_json_tags: true
+    emit_prepared_queries: true
+    emit_exact_table_names: false

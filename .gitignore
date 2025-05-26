@@ -1,1 +1,36 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/steam-tracker            # if you build a local binary named steam-tracker
+/cmd/server/steam-tracker # or whatever your build output is
+
+# Test outputs
+*.coverprofile
+cover.out
+
+# Environment files
 .env
+
+# IDE / Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# sqlc generated code?
+# (only if you prefer to generate at CI rather than check in)
+# /internal/db/*.go
+
+# Go modules (you should commit go.mod & go.sum)
+# if you use vendoring:
+# /vendor/
+
+# Logs
+*.log
