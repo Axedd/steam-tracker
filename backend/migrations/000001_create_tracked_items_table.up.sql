@@ -1,3 +1,4 @@
+--  migrate.exe -path migrations -database $Env:DATABASE_URL up
 CREATE TABLE IF NOT EXISTS tracked_items (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,

@@ -1,54 +1,61 @@
+// cmd/server/main.go
 package main
 
 import (
 	"log"
-	"net/http"
 
+	"github.com/Axedd/steam-tracker.git/internal/api"
 	"github.com/Axedd/steam-tracker.git/internal/config"
 	"github.com/Axedd/steam-tracker.git/internal/db"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	// 1) Load config
+	// Load config
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("could not load config: %v", err)
 	}
 
-	// 2) Open the raw *sql.DB (with error)
+	// Connect DB
 	sqlDB, err := db.Connect(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("could not connect to database: %v", err)
 	}
-	// Make sure to close the pool on exit
 	defer sqlDB.Close()
 
-	// 3) Wrap it in the sqlc client (no error returned)
 	queries := db.New(sqlDB)
 
-	// 4) Set up Gin and your handlers, passing `queries` where needed
 	r := gin.Default()
 
-	r.GET("/ping", func(c *gin.Context) {
+	// ─── Enable CORS ─────────────────────────────────────────────────
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"}, // your Vite dev server
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
+	// ────────────────────────────────────────────────────────────────
+
+	// Your existing routes
+	v1 := r.Group("/v1")
+	v1.GET("/ping", func(c *gin.Context) {
 		if err := sqlDB.Ping(); err != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "db down", "error": err.Error()})
+			c.JSON(503, gin.H{"status": "db down", "error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"message": "pong"})
+		c.JSON(200, gin.H{"message": "pong"})
 	})
 
-	// Example of listing items:
-	r.GET("/items", func(c *gin.Context) {
-		items, err := queries.ListItems(c) // c is a context.Context
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, items)
-	})
+	// Mount your appids at the root
+	appHandler := api.NewAppIDHandler(queries)
+	appHandler.RegisterRoutes(r)
 
-	// 5) Start server
+	paramsHandler := api.NewSteamParamHandler(queries)
+	paramsHandler.RegisterRoutes(r)
+
 	addr := ":" + cfg.HTTPPort
 	log.Printf("listening on %s…", addr)
 	if err := r.Run(addr); err != nil {

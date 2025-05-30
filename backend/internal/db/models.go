@@ -12,6 +12,12 @@ import (
 	"github.com/sqlc-dev/pqtype"
 )
 
+type Appid struct {
+	Appid   int32  `json:"appid"`
+	Name    string `json:"name"`
+	LogoUrl string `json:"logo_url"`
+}
+
 type SteamParamDef struct {
 	Key          string                `json:"key"`
 	Label        string                `json:"label"`
@@ -19,6 +25,7 @@ type SteamParamDef struct {
 	Options      pqtype.NullRawMessage `json:"options"`
 	DefaultValue sql.NullString        `json:"default_value"`
 	HelpText     sql.NullString        `json:"help_text"`
+	Appid        sql.NullInt32         `json:"appid"`
 }
 
 type TrackedItem struct {

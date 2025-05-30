@@ -8,24 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 )
-
-// Connect opens a *sql.DB and configures the pool.
-// It returns the raw *sql.DB, which satisfies DBTX.
-func Connect(databaseURL string) (*sql.DB, error) {
-    dbConn, err := sql.Open("postgres", databaseURL)
-    if err != nil {
-        return nil, err
-    }
-    dbConn.SetMaxOpenConns(25)
-    dbConn.SetMaxIdleConns(25)
-    dbConn.SetConnMaxLifetime(5 * time.Minute)
-    if err := dbConn.Ping(); err != nil {
-        return nil, err
-    }
-    return dbConn, nil
-}
 
 type DBTX interface {
 	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
@@ -41,29 +24,71 @@ func New(db DBTX) *Queries {
 func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	q := Queries{db: db}
 	var err error
+	if q.addSteamParamStmt, err = db.PrepareContext(ctx, addSteamParam); err != nil {
+		return nil, fmt.Errorf("error preparing query AddSteamParam: %w", err)
+	}
+	if q.createAppIDStmt, err = db.PrepareContext(ctx, createAppID); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateAppID: %w", err)
+	}
 	if q.createItemStmt, err = db.PrepareContext(ctx, createItem); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateItem: %w", err)
+	}
+	if q.deleteAppIDStmt, err = db.PrepareContext(ctx, deleteAppID); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteAppID: %w", err)
 	}
 	if q.deleteItemStmt, err = db.PrepareContext(ctx, deleteItem); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteItem: %w", err)
 	}
+	if q.getAppIDByIDStmt, err = db.PrepareContext(ctx, getAppIDByID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetAppIDByID: %w", err)
+	}
+	if q.getGlobalParamsStmt, err = db.PrepareContext(ctx, getGlobalParams); err != nil {
+		return nil, fmt.Errorf("error preparing query GetGlobalParams: %w", err)
+	}
 	if q.getItemByIDStmt, err = db.PrepareContext(ctx, getItemByID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetItemByID: %w", err)
+	}
+	if q.getParamsByAppIDStmt, err = db.PrepareContext(ctx, getParamsByAppID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetParamsByAppID: %w", err)
+	}
+	if q.listAppIDsStmt, err = db.PrepareContext(ctx, listAppIDs); err != nil {
+		return nil, fmt.Errorf("error preparing query ListAppIDs: %w", err)
 	}
 	if q.listItemsStmt, err = db.PrepareContext(ctx, listItems); err != nil {
 		return nil, fmt.Errorf("error preparing query ListItems: %w", err)
 	}
+	if q.removeSteamParamStmt, err = db.PrepareContext(ctx, removeSteamParam); err != nil {
+		return nil, fmt.Errorf("error preparing query RemoveSteamParam: %w", err)
+	}
 	if q.updateItemStmt, err = db.PrepareContext(ctx, updateItem); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateItem: %w", err)
+	}
+	if q.updateParamByKeyStmt, err = db.PrepareContext(ctx, updateParamByKey); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateParamByKey: %w", err)
 	}
 	return &q, nil
 }
 
 func (q *Queries) Close() error {
 	var err error
+	if q.addSteamParamStmt != nil {
+		if cerr := q.addSteamParamStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing addSteamParamStmt: %w", cerr)
+		}
+	}
+	if q.createAppIDStmt != nil {
+		if cerr := q.createAppIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createAppIDStmt: %w", cerr)
+		}
+	}
 	if q.createItemStmt != nil {
 		if cerr := q.createItemStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createItemStmt: %w", cerr)
+		}
+	}
+	if q.deleteAppIDStmt != nil {
+		if cerr := q.deleteAppIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteAppIDStmt: %w", cerr)
 		}
 	}
 	if q.deleteItemStmt != nil {
@@ -71,9 +96,29 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteItemStmt: %w", cerr)
 		}
 	}
+	if q.getAppIDByIDStmt != nil {
+		if cerr := q.getAppIDByIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getAppIDByIDStmt: %w", cerr)
+		}
+	}
+	if q.getGlobalParamsStmt != nil {
+		if cerr := q.getGlobalParamsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getGlobalParamsStmt: %w", cerr)
+		}
+	}
 	if q.getItemByIDStmt != nil {
 		if cerr := q.getItemByIDStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getItemByIDStmt: %w", cerr)
+		}
+	}
+	if q.getParamsByAppIDStmt != nil {
+		if cerr := q.getParamsByAppIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getParamsByAppIDStmt: %w", cerr)
+		}
+	}
+	if q.listAppIDsStmt != nil {
+		if cerr := q.listAppIDsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listAppIDsStmt: %w", cerr)
 		}
 	}
 	if q.listItemsStmt != nil {
@@ -81,9 +126,19 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listItemsStmt: %w", cerr)
 		}
 	}
+	if q.removeSteamParamStmt != nil {
+		if cerr := q.removeSteamParamStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing removeSteamParamStmt: %w", cerr)
+		}
+	}
 	if q.updateItemStmt != nil {
 		if cerr := q.updateItemStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateItemStmt: %w", cerr)
+		}
+	}
+	if q.updateParamByKeyStmt != nil {
+		if cerr := q.updateParamByKeyStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateParamByKeyStmt: %w", cerr)
 		}
 	}
 	return err
@@ -123,23 +178,41 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db              DBTX
-	tx              *sql.Tx
-	createItemStmt  *sql.Stmt
-	deleteItemStmt  *sql.Stmt
-	getItemByIDStmt *sql.Stmt
-	listItemsStmt   *sql.Stmt
-	updateItemStmt  *sql.Stmt
+	db                   DBTX
+	tx                   *sql.Tx
+	addSteamParamStmt    *sql.Stmt
+	createAppIDStmt      *sql.Stmt
+	createItemStmt       *sql.Stmt
+	deleteAppIDStmt      *sql.Stmt
+	deleteItemStmt       *sql.Stmt
+	getAppIDByIDStmt     *sql.Stmt
+	getGlobalParamsStmt  *sql.Stmt
+	getItemByIDStmt      *sql.Stmt
+	getParamsByAppIDStmt *sql.Stmt
+	listAppIDsStmt       *sql.Stmt
+	listItemsStmt        *sql.Stmt
+	removeSteamParamStmt *sql.Stmt
+	updateItemStmt       *sql.Stmt
+	updateParamByKeyStmt *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:              tx,
-		tx:              tx,
-		createItemStmt:  q.createItemStmt,
-		deleteItemStmt:  q.deleteItemStmt,
-		getItemByIDStmt: q.getItemByIDStmt,
-		listItemsStmt:   q.listItemsStmt,
-		updateItemStmt:  q.updateItemStmt,
+		db:                   tx,
+		tx:                   tx,
+		addSteamParamStmt:    q.addSteamParamStmt,
+		createAppIDStmt:      q.createAppIDStmt,
+		createItemStmt:       q.createItemStmt,
+		deleteAppIDStmt:      q.deleteAppIDStmt,
+		deleteItemStmt:       q.deleteItemStmt,
+		getAppIDByIDStmt:     q.getAppIDByIDStmt,
+		getGlobalParamsStmt:  q.getGlobalParamsStmt,
+		getItemByIDStmt:      q.getItemByIDStmt,
+		getParamsByAppIDStmt: q.getParamsByAppIDStmt,
+		listAppIDsStmt:       q.listAppIDsStmt,
+		listItemsStmt:        q.listItemsStmt,
+		removeSteamParamStmt: q.removeSteamParamStmt,
+		updateItemStmt:       q.updateItemStmt,
+		updateParamByKeyStmt: q.updateParamByKeyStmt,
 	}
 }

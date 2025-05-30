@@ -1,0 +1,1 @@
+ALTER TABLE steam_param_defs DROP COLUMN age;
